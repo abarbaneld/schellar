@@ -12,6 +12,7 @@ import (
 
 var (
 	conductorURL         string
+	mongoURL             string
 	mongoAddress         string
 	mongoUsername        string
 	mongoPassword        string
@@ -39,7 +40,8 @@ func main() {
 	logLevel := flag.String("loglevel", "debug", "debug, info, warning, error")
 	checkInterval0 := flag.Int("check-interval", 10, "Workflow check interval in seconds")
 	conductorURL0 := flag.String("conductor-api-url", "", "Conductor API URL. Example: http://conductor-server:8080/api")
-	mongoAddress0 := flag.String("mongo-address", "", "MongoDB address. Example: 'mongo', or 'mongdb://mongo1:1234/db1,mongo2:1234/db1")
+	mongoURL0 := flag.String("mongo-url", "", "MongoDB Url. Example: 'mongdb://mongo1:1234/db1,mongo2:1234/db1")
+	mongoAddress0 := flag.String("mongo-address", "", "MongoDB address. Example: 'mongo'")
 	mongoUsername0 := flag.String("mongo-username", "root", "MongoDB username")
 	mongoPassword0 := flag.String("mongo-password", "root", "MongoDB password")
 	flag.Parse()
@@ -64,9 +66,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	mongoURL = *mongoURL0
 	mongoAddress = *mongoAddress0
-	if mongoAddress == "" {
-		logrus.Errorf("'mongo-address' parameter is required")
+	if mongoAddress == "" && mongoURL == "" {
+		logrus.Errorf("'mongo-address' or 'mongo-url' parameter is required")
 		os.Exit(1)
 	}
 
@@ -86,8 +89,14 @@ func main() {
 		Password: mongoPassword,
 	}
 
+	mongoDBDialInfo, er := mgo.ParseURL(mongoURL)
+	if er != nil {
+		logrus.Errorf("Error parsing mongdb URL. err=%s", er)
+	}
+
 	for i := 0; i < 30; i++ {
 		ms, err := mgo.DialWithInfo(mongoDBDialInfo)
+
 		if err != nil {
 			logrus.Infof("Couldn't connect to mongdb. err=%s", err)
 			time.Sleep(1 * time.Second)
